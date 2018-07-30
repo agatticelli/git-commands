@@ -2,10 +2,30 @@ if [[ -z "$JIRA_SITE" ]]
 then
     while [[ -z "$JIRA_SITE" ]];
     do
-        read -p 'Jira Site: ' JIRA_SITE
+        read -p 'Jira site: ' JIRA_SITE
     done
 
     echo "export JIRA_SITE=$JIRA_SITE" >> ~/.git-commands
+fi
+
+if [[ -z "$JIRA_USER" ]]
+then
+    while [[ -z "$JIRA_USER" ]];
+    do
+        read -p 'Jira user: ' JIRA_USER
+    done
+
+    echo "export JIRA_USER=$JIRA_USER" >> ~/.git-commands
+fi
+
+if [[ -z "$JIRA_PASS" ]]
+then
+    while [[ -z "$JIRA_PASS" ]];
+    do
+        read -sp 'Jira password: ' JIRA_PASS
+    done
+
+    echo "export JIRA_PASS=$JIRA_PASS" >> ~/.git-commands
 fi
 
 
