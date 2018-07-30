@@ -1,0 +1,33 @@
+if [[ -z "$JIRA_SITE" ]]
+then
+    while [[ -z "$JIRA_SITE" ]];
+    do
+        read -p 'Jira Site: ' JIRA_SITE
+    done
+
+    echo "export JIRA_SITE=$JIRA_SITE" >> ~/.git-commands
+fi
+
+
+atlassian_url="https://$JIRA_SITE.atlassian.net/rest/api/2"
+
+jira_request() {
+    method=$1; shift
+    resource=$1; shift
+    
+    case "$method" in
+        PUT|POST)
+            data=$1; shift
+            ;;
+        *)
+            data=''
+            ;;
+    esac
+
+    echo $(curl -s --request $method \
+        -u $JIRA_USER:$JIRA_PASS \
+        --header 'Accept: application/json' \
+        --header 'Content-Type: application/json' \
+        --data "$data" \
+        --url "$atlassian_url/$resource")
+}

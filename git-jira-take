@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+
+usage() {
+    echo "usage: git jira take <issue-id>"
+    echo
+}
+
+cmd_take() {
+    if [ "$#" -eq 1 ]; then
+        if [ $1 == "help" ]; then
+            usage; exit 0
+        fi
+
+        take_issue $1; exit 0
+    fi
+
+    usage; exit 1
+}
+
+take_issue() {
+    git status > /dev/null 2>&1
+
+    if [[ $? -ne 0 ]]; then
+        echo "Error: You are not inside a git repository"; exit 1;
+    fi
+
+    response=$(jira_request "GET" "issue/$1")
+
+    error=$(echo $response | jq -r '.errorMessages[0]')
+    if [[ $error != "null" ]]; then
+        echo "Error: $error"; exit 1
+    fi
+
+    error=$(echo $response | jq -r '.errors[0]')
+    if [[ $error != "null" ]]; then
+        echo "Error: $error"; exit 1
+    fi
+
+    branchName=$1
+
+    # Checking if branch already exists
+    git branch | grep $branchName > /dev/null
+
+    if [[ $? -eq 0 ]]; then
+        echo "Error: Issue already taken, run \"git checkout $branchName\" instead"
+        exit 1
+    fi
+    
+    # Checking if working directory is clean
+    git status | grep "working tree clean" > /dev/null
+
+    if [[ $? -ne 0 ]]; then
+        echo "Error: You have uncommited work"; exit 1
+    fi
+    
+    # Fetch last upstream data and update your master with upstream master
+    git fetch upstream > /dev/null 2>&1
+    git checkout master > /dev/null 2>&1
+    git merge upstream/master > /dev/null 2>&1
+
+    # Create the new branch from your updated master
+    git checkout -b $branchName
+
+    echo "Assigning issue to $JIRA_USER"
+    jira_request "PUT" "issue/$1/assignee" '{ "name": "'$JIRA_USER'" }' > /dev/null
+
+    echo "Putting issue in progress"
+    inProgressID=$(jira_request "GET" "issue/$1/transitions" | jq -r '.transitions[] | select(.name == "In Progress") | .id')
+
+    jira_request "POST" "issue/$1/transitions" '{"transition": { "id": "'$inProgressID'"}}' > /dev/null
+
+    echo
+    echo "### Issue summary ###"
+    echo $response | jq -r '.fields.summary'
+    echo
+}
